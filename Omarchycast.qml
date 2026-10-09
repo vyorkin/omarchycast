@@ -89,21 +89,41 @@ Item {
     return null
   }
 
+  // A compositor chord can open the launcher with a prefix already typed, by
+  // passing {"initialQuery": "b "} to the toggle payload. Without it the field
+  // starts empty, which is the original behaviour. The payload arrives as a JSON
+  // string from `omarchy-shell shell toggle`, but an already-parsed object is
+  // accepted too: which of the two it is depends on the caller.
+  function initialQueryFrom(payloadJson) {
+    var payload = payloadJson
+    if (typeof payloadJson === "string") {
+      try {
+        payload = JSON.parse(payloadJson)
+      } catch (e) {
+        return ""
+      }
+    }
+    if (payload && typeof payload.initialQuery === "string") return payload.initialQuery
+    return ""
+  }
+
   function open(payloadJson) {
+    var initial = root.initialQueryFrom(payloadJson)
     root.targetScreen = root.resolveFocusedScreen()
     root.opened = true
     root.settingsOpen = false
-    root.queryText = ""
+    root.queryText = initial
     // The TextInput keeps its own text; clearing only the mirror leaves the
     // previous session's query on screen.
-    input.text = ""
+    input.text = initial
+    input.cursorPosition = initial.length
     root.selectedIndex = 0
     root.statusMessage = ""
     root.tourActive = false
     root.disarmPointer()
     daemon.ensureConnected()
     daemon.requestConfig()
-    root.runQuery("")
+    root.runQuery(initial)
     Qt.callLater(function () { input.forceActiveFocus() })
   }
 
@@ -636,6 +656,15 @@ Item {
                 root.move(-1); event.accepted = true
               } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 root.activate((event.modifiers & Qt.ShiftModifier) ? "secondary" : "primary")
+                event.accepted = true
+              } else if (event.key === Qt.Key_B && (event.modifiers & Qt.ControlModifier)) {
+                // Ctrl+B jumps straight to the books source, whose keyword is
+                // "b" (see ~/.config/omarchycast/plugins/books.json). The rest
+                // of the query is then typed after the prefix.
+                input.text = "b "
+                input.cursorPosition = input.text.length
+                root.queryText = input.text
+                root.runQuery(root.queryText)
                 event.accepted = true
               } else if (event.key === Qt.Key_Comma && (event.modifiers & Qt.ControlModifier)) {
                 root.settingsOpen = true; event.accepted = true
