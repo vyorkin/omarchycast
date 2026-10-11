@@ -24,7 +24,8 @@ use crate::providers::date::DateProvider;
 use crate::providers::notes::NotesProvider;
 use crate::providers::omarchy::OmarchyProvider;
 use crate::providers::plugins::PluginsProvider;
-use notify_debouncer_full::new_debouncer;
+use notify_debouncer_full::notify::EventKind;
+use notify_debouncer_full::{new_debouncer, DebouncedEvent};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -197,6 +198,18 @@ fn dispatch(state: &State, request: Request) -> Response {
     }
 }
 
+/// True when a debounced batch reports nothing but access to the watched files.
+///
+/// The watchers read the very directories they watch, and notify's default mask
+/// includes `IN_OPEN`, so every reindex pass is itself an event. Reacting to
+/// those would restart the index the moment it finished — a self-sustaining
+/// loop that reads the whole desktop-file set thousands of times a second and
+/// burns a core's worth of CPU over a session. Only mutations matter here: a
+/// file appearing, changing, moving or vanishing.
+fn only_access(events: &[DebouncedEvent]) -> bool {
+    !events.is_empty() && events.iter().all(|e| matches!(e.event.kind, EventKind::Access(_)))
+}
+
 /// Re-index when a .desktop file appears, changes or is removed, so a newly
 /// installed app is searchable without restarting the daemon.
 fn watch_desktop_files(apps: Arc<AppsProvider>) {
@@ -221,9 +234,11 @@ fn watch_desktop_files(apps: Arc<AppsProvider>) {
         }
 
         for result in rx {
-            if result.is_ok() {
-                apps.reindex();
+            let Ok(events) = result else { continue };
+            if only_access(&events) {
+                continue;
             }
+            apps.reindex();
         }
     });
 }
@@ -251,9 +266,11 @@ fn watch_notes(notes: Arc<NotesProvider>) {
             return;
         }
         for result in rx {
-            if result.is_ok() {
-                notes.reindex();
+            let Ok(events) = result else { continue };
+            if only_access(&events) {
+                continue;
             }
+            notes.reindex();
         }
     });
 }
@@ -275,9 +292,11 @@ fn watch_plugins(plugins: Arc<PluginsProvider>) {
             return;
         }
         for result in rx {
-            if result.is_ok() {
-                plugins.reindex();
+            let Ok(events) = result else { continue };
+            if only_access(&events) {
+                continue;
             }
+            plugins.reindex();
         }
     });
 }
