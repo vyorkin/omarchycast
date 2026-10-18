@@ -3,6 +3,15 @@ BINDIR ?= $(PREFIX)/bin
 PLUGIN_ID ?= io.github.aditya-raj-tiwari.omarchycast
 PLUGINDIR ?= $(HOME)/.config/omarchy/plugins/$(PLUGIN_ID)
 
+# Keep build artifacts out of the plugin directory. The shell watches
+# ~/.config/omarchy/plugins/ recursively and hot-reloads every plugin on any
+# file change below it, so a release build under daemon/target/ would trigger a
+# reload per artifact written — hundreds of them per build. Override on the
+# command line to build elsewhere.
+CARGO_TARGET_DIR ?= /data/cache/omarchycast
+export CARGO_TARGET_DIR
+CARGO_BIN = $(CARGO_TARGET_DIR)/release/omarchycastd
+
 .PHONY: all build install uninstall test check clean dev
 
 all: build
@@ -27,7 +36,7 @@ NOTESDIR ?= $(HOME)/.local/share/omacastnotes
 
 # Installs the daemon, the notes viewer, and registers the overlay.
 install: build
-	install -Dm755 daemon/target/release/omarchycastd $(BINDIR)/omarchycastd
+	install -Dm755 $(CARGO_BIN) $(BINDIR)/omarchycastd
 	install -Dm755 notesapp/omacastnotes $(BINDIR)/omacastnotes
 	mkdir -p $(NOTESDIR)
 	cp -f notesapp/omacastnotes.py $(NOTESDIR)/
