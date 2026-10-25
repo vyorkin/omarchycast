@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import QtQuick
 import qs.Commons
 import qs.Ui
+import qs.Commons as Commons
 
 // Overlay entry point. Omarchy summons this with `omarchy-shell toggle
 // io.github.aditya-raj-tiwari.omarchycast`; the contract is the open/close/toggle trio below.
@@ -52,12 +53,12 @@ Item {
   // Shares the [menu] surface tokens, so any theme that styles the Omarchy menu
   // styles the launcher too.
   readonly property bool themed: config.appearance.followTheme
-  readonly property color background: themed ? Color.menu.background : "#16161d"
-  readonly property color foreground: themed ? Color.menu.text : "#dcd7ba"
-  readonly property color borderColor: themed ? Color.menu.border : "#2a2a35"
-  readonly property color scrim: themed ? Color.menu.scrim : "#99000000"
-  readonly property color selectedBackground: themed ? Color.menu.selectedBackground : "#2d4f67"
-  readonly property color selectedText: themed ? Color.menu.selectedText : "#ffffff"
+  readonly property color background: themed ? Commons.Color.menu.background : "#16161d"
+  readonly property color foreground: themed ? Commons.Color.menu.text : "#dcd7ba"
+  readonly property color borderColor: themed ? Commons.Color.menu.border : "#2a2a35"
+  readonly property color scrim: themed ? Commons.Color.menu.scrim : "#99000000"
+  readonly property color selectedBackground: themed ? Commons.Color.menu.selectedBackground : "#2d4f67"
+  readonly property color selectedText: themed ? Commons.Color.menu.selectedText : "#ffffff"
   readonly property string fontFamily: Style.font.menuFamily
 
   // Density and type scale. Every font size the theme provides passes through
