@@ -18,9 +18,6 @@ Item {
   property int selectedIndex: 0
   property var results: []
   property string statusMessage: ""
-  // Hover must not steal the selection from the keyboard just because the
-  // pointer happens to rest over a row. It only takes over once it actually moves.
-  property bool pointerArmed: false
   // Set while a "Copied" confirmation is on screen, so the launcher stays up
   // just long enough for the user to see that something happened.
   property bool confirming: false
@@ -318,8 +315,24 @@ Item {
     root.close()
   }
 
+  // Hover must not steal the selection from the keyboard while the pointer
+  // merely rests over a row. A row's positionChanged fires when the row moves
+  // or is rebuilt underneath a stationary cursor, so the gate compares the
+  // pointer in root coordinates instead: only movement of the pointer itself
+  // counts, and everything that re-ranks the list disarms it again.
+  PointerMoveGate {
+    id: pointerGate
+    referenceItem: root
+    threshold: 3
+  }
+
   function disarmPointer() {
-    root.pointerArmed = false
+    pointerGate.reset()
+  }
+
+  function selectFromPointer(index, item, mouse) {
+    if (!pointerGate.moved(item, mouse)) return
+    root.selectedIndex = index
   }
 
   function move(delta) {
@@ -728,15 +741,14 @@ Item {
               }
 
               MouseArea {
+                id: rowMouse
                 anchors.fill: parent
                 hoverEnabled: true
-                // Only a real movement arms the pointer; entering a row because
-                // the list scrolled underneath a stationary cursor does not.
-                onPositionChanged: {
-                  root.pointerArmed = true
-                  root.selectedIndex = index
+                // Entering a row because the list was rebuilt underneath a
+                // stationary cursor is not a pointer move; the gate decides.
+                onPositionChanged: function (mouse) {
+                  root.selectFromPointer(index, rowMouse, mouse)
                 }
-                onEntered: if (root.pointerArmed) root.selectedIndex = index
                 onClicked: { root.selectedIndex = index; root.activate("primary") }
               }
 
